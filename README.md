@@ -14,6 +14,11 @@ A space for brainstorming and documenting potential research questions, projects
 ## 🔧 Functions
 This section contains various functions and code snippets that I've developed or found useful. Each entry includes a brief description and usage instructions.
 
+- Shiny App: Explore the [interactive three-level drilldown plot](https://zhanglong.shinyapps.io/ThreeLevelDrilldownPlot/)
+
+- Calculating LSD Values for ```ASReml-R``` Model: View the details here [LSD values & labels for ASReml-R model](https://www.zcao.space/2024/11/02/LSDfunction.html)
+
+
 ## 🌐 Topics
 A collection of interesting topics, articles, and resources that I've come across. These may be directly related to my research or simply intriguing.
 
