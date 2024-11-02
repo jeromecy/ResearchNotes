@@ -1,0 +1,139 @@
+---
+title: "Calculating LSD Values of ASReml-R Model"
+author: "Zhanglong"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(igraph)
+library(asreml)
+library(asremlPlus)
+library(ggplot2)
+library(agricolae)
+library(tidyverse)
+library(gridExtra)
+```
+
+# LSDlabels Function
+The ```LSDlabels``` function is used for calculating the LSD values for the pairwise comparisons from the ```ASReml-R``` model.
+
+```{r,warning=FALSE}
+LSDlabels <- function(P, alpha) {
+  a <- P
+  diag(a) <- 1
+  b <- which(a > alpha, arr.ind = TRUE)
+  top <- data.frame(N1 = b[, 1], N2 = b[, 2])
+  g3 <- igraph::simplify(igraph::graph.data.frame(top[order(top[[1]]), ], directed = FALSE))
+  cliq <- igraph::maximal.cliques(g3)
+  nn <- length(cliq)
+  temp1 <- rep("", nrow(a))
+  assignment <- c(letters, LETTERS, paste(letters, '.', sep = ''), paste(LETTERS, '.', sep = ''))
+  cliq2 <- list()
+  for (j in 1:nn) {
+    cliq2[[j]] <- colnames(a)[cliq[[j]]]
+  }
+  for (ind in 1:nrow(a)) {
+    tt <- which(sapply(1:length(cliq2), function(x) colnames(a)[ind] %in% cliq2[[x]]) == TRUE)
+    temp1[ind] <- paste0(assignment[tt], collapse = "")
+  }
+  return(temp1)
+}
+```
+
+
+# ASReml Model and Predictions
+We fit the ASReml model and calculate the pairwise differences.
+
+```{r,warning=FALSE}
+# Load data
+data(oats)
+
+# Fit the ASReml model
+oats.asr <- asreml(yield ~ Variety * Nitrogen, random = ~ Blocks / Wplots, data = oats)
+
+# Perform ASReml tests
+mod.asrt <- as.asrtests(oats.asr, NULL, NULL)
+
+# Predict and calculate pairwise differences
+diffs <- predictPlus(classify = "Variety*Nitrogen",
+                     asreml.obj = oats.asr,
+                     wald.tab = mod.asrt$wald.tab,
+                     pairwise = TRUE)
+
+# Calculate LSD at p = 0.05 level
+diffs$predictions$LSD <- LSDlabels(diffs$p.differences, 0.05)
+```
+
+
+# Plotting Results with ggplot2
+We use ```ggplot2``` to visualize the predicted values with LSD labels.
+
+```{r,warning=FALSE}
+g1 <- ggplot(data = diffs$predictions, aes(Variety, predicted.value, fill = Nitrogen)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(Variety, predicted.value, label = round(predicted.value, 2)), 
+            vjust = -0.5, size = 5, position = position_dodge(0.9)) + 
+  geom_text(aes(label = LSD), vjust = 1.6, size = 5, position = position_dodge(0.9)) +
+  ylim(0, 135) +
+  scale_fill_brewer(palette = "Paired") +
+  ggtitle("Using LSDlabels function for LSD") +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+g1
+```
+
+
+# Equivalent Method Using ```agricolae``` Package
+We demonstrate an equivalent method using the ```agricolae``` package.
+
+### Predict using predictPlus.asreml
+```{r,warning=FALSE}
+pred <- predictPlus.asreml(oats.asr, 
+                           classify = "Variety*Nitrogen", 
+                           wald.tab = as.data.frame(wald(oats.asr)), 
+                           pairwise = TRUE)
+
+# Prepare data for agricolae
+std.error <- pred$predictions$standard.error
+prob.matrix <- ifelse(is.na(pred$p.differences), 1, pred$p.differences)
+treatments <- colnames(prob.matrix)
+means <- pred$predictions$predicted.value
+alpha <- 0.05
+
+# Calculate LSD means table using agricolae
+lsdmeantab <- orderPvalue(treatments, means, alpha, prob.matrix, console = TRUE)
+lsdmeantab$Treatment <- rownames(lsdmeantab)
+
+# Split Treatment column into Variety and Nitrogen
+lsdmeantab <- lsdmeantab %>% 
+  separate(Treatment, into = c("Variety", "Nitrogen"), sep = ",")
+
+# Plot the results using ggplot2
+g2 <- ggplot(data = lsdmeantab, aes(Variety, means, fill = Nitrogen)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(Variety, means, label = round(means, 2)), 
+            vjust = -0.5, size = 5, position = position_dodge(0.9)) + 
+  geom_text(aes(label = groups), vjust = 1.6, size = 5, position = position_dodge(0.9)) +
+  ylim(0, 135) +
+  scale_fill_brewer(palette = "Paired") +
+  ggtitle("Using agricolae for LSD") +
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = "bottom")
+g2
+```
+
+# Conclusion
+
+This document demonstrates two equivalent methods for generating plots with LSD labels of ```ASReml-R``` models. The first method uses the ```LSDlabels``` function, while the second method utilises the ```agricolae``` package. Both methods produce same results, allowing users to choose the approach that best suits their needs.
+
+```{r,warning=FALSE,fig.width=10}
+grid.arrange(g1, g2, ncol = 2)
+```
+
+
+
+
+
+
