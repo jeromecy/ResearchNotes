@@ -5,7 +5,7 @@ account: zhanglong
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 13211823
-bundleId: 9305793
+bundleId: 9307878
 url: https://zhanglong.shinyapps.io/ThreeLevelDrilldownPlot/
 version: 1
 asMultiple: FALSE

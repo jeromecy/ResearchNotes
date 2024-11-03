@@ -1,11 +1,3 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
 
 library(shiny)
 library(shinythemes)
@@ -21,38 +13,38 @@ data <- data.frame(
   Region = rep(c("Western", "Southern", "Northern"), each = 30),
   Crop = rep(c("Wheat", "Barley", "Canola"), times = 30),
   Disease = sample(c("Disease1", "Disease2", "Disease3"), 90, replace = TRUE),
-  YLD = runif(90, 50000, 150000)  # Total $ instead of $/ha
+  YLD = runif(90, 5, 10)  # Total $ instead of $/ha
 )
 
 
 # Aggregate data by region for the main series
 region_data <- data %>%
   group_by(Region) %>%
-  summarise(medianYLD = round(median(YLD), 3)) %>%
+  summarise(sumYLD = round(sum(YLD), 3)) %>%
   mutate(Region = paste(Region, "Region"),
          drilldown = Region)
 
 national_data <- data %>%
-  summarise(medianYLD = round(median(YLD), 3)) %>%
+  summarise(sumYLD = round(sum(YLD), 3)) %>%
   mutate(Region = 'National',
          drilldown = 'National')
 
 combined_regionaldata <- bind_rows(region_data, national_data) %>% 
-  arrange(desc(medianYLD))
+  arrange(desc(sumYLD))
 
 crop_data <- data %>%
   group_by(Region, Crop) %>%
-  summarise(medianYLD = round(median(YLD), 3)) %>% 
+  summarise(sumYLD = round(sum(YLD), 3)) %>% 
   mutate(Region = paste(Region, "Region"))
 
 crop_nationaldata <- data %>%
   group_by(Crop) %>%
-  summarise(medianYLD = round(median(YLD), 3)) %>% 
+  summarise(sumYLD = round(sum(YLD), 3)) %>% 
   mutate(Region = 'National')
 
 combined_crop_data <- bind_rows(crop_data, crop_nationaldata) %>%
-  arrange(desc(medianYLD)) %>% 
-  nest(data = c(Crop, medianYLD))
+  arrange(desc(sumYLD)) %>% 
+  nest(data = c(Crop, sumYLD))
 
 combined_crop_data$data <- lapply(1:nrow(combined_crop_data), function(i) {
   combined_crop_data$data[[i]]$drilldown <- paste(combined_crop_data$Region[i], combined_crop_data$data[[i]]$Crop)
@@ -64,17 +56,17 @@ combined_crop_data <- combined_crop_data %>%
 
 drilldown_data <- data %>%
   group_by(Region, Crop, Disease) %>%
-  summarise(medianYLD = round(median(YLD), 3)) %>% 
+  summarise(sumYLD = round(sum(YLD), 3)) %>% 
   mutate(Region = paste(Region, "Region"))
 
 drilldown_nationaldata <- data %>%
   group_by(Crop, Disease) %>%
-  summarise(medianYLD = round(median(YLD), 3)) %>% 
+  summarise(sumYLD = round(sum(YLD), 3)) %>% 
   mutate(Region = 'National')
 
 combined_drilldown_data <- bind_rows(drilldown_data, drilldown_nationaldata) %>%
-  arrange(desc(medianYLD)) %>% 
-  nest(data = c(Disease, medianYLD)) %>%
+  arrange(desc(sumYLD)) %>% 
+  nest(data = c(Disease, sumYLD)) %>%
   mutate(data = map(data, list_parse2))
 
 # Define UI for application that draws a histogram
@@ -138,7 +130,7 @@ server <- function(input, output) {
           lapply(1:nrow(combined_regionaldata), function(i) {
             list(
               name = combined_regionaldata$Region[i],
-              y = combined_regionaldata$medianYLD[i],
+              y = combined_regionaldata$sumYLD[i],
               drilldown = combined_regionaldata$drilldown[i],
               color = colors[i %% length(colors) + 1]
             )
